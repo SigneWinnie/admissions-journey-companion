@@ -12,18 +12,8 @@ import {
   type TextLayer,
 } from "@/lib/memeRenderer";
 import { useGallery } from "@/hooks/useGallery";
-import {
-  Upload,
-  Download,
-  Plus,
-  Trash2,
-  Twitter,
-  Facebook,
-  Share2,
-  Save,
-  Bold,
-  ImageIcon,
-} from "lucide-react";
+import { toast } from "sonner";
+import { Upload, Download, Plus, Trash2, Twitter, Facebook, Share2, Save, Bold, Image as ImageIcon } from "lucide-react";
 
 const CANVAS_W = 800;
 
