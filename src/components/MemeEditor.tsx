@@ -146,10 +146,15 @@ export function MemeEditor() {
     a.click();
   };
 
-  const saveToGallery = () => {
+  const saveToGallery = async () => {
     const c = canvasRef.current;
     if (!c) return;
-    save(c.toDataURL("image/png"));
+    const result = await save(c.toDataURL("image/png"));
+    if (result) {
+      toast.success("Meme saved to gallery!");
+    } else {
+      toast.error("Failed to save meme. Please log in.");
+    }
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
   };
@@ -395,23 +400,25 @@ export function MemeEditor() {
 
           <TabsContent value="templates" className="mt-4">
             <div className="grid grid-cols-2 gap-2">
-              {TEMPLATES.map((t) => (
-                <button
-                  key={t.url}
-                  onClick={() => setImageSrc(t.url)}
-                  className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition"
-                >
-                  <img
-                    src={t.url}
-                    alt={t.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition"
-                    crossOrigin="anonymous"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                    <span className="text-[10px] font-medium text-white">{t.name}</span>
-                  </div>
-                </button>
-              ))}
+              {TEMPLATES.map((t) => {
+                const proxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proxy-image?url=${encodeURIComponent(t.url)}`;
+                return (
+                  <button
+                    key={t.url}
+                    onClick={() => setImageSrc(proxyUrl)}
+                    className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition"
+                  >
+                    <img
+                      src={proxyUrl}
+                      alt={t.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                      <span className="text-[10px] font-medium text-white">{t.name}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
             <p className="text-[11px] text-muted-foreground mt-3 flex items-start gap-1.5">
               <ImageIcon className="size-3 mt-0.5 shrink-0" />
