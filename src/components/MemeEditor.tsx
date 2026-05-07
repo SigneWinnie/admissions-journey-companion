@@ -13,11 +13,22 @@ import {
 } from "@/lib/memeRenderer";
 import { useGallery } from "@/hooks/useGallery";
 import { toast } from "sonner";
-import { Upload, Download, Plus, Trash2, Twitter, Facebook, Share2, Save, Bold, Image as ImageIcon } from "lucide-react";
+import {
+  Upload,
+  Download,
+  Plus,
+  Trash2,
+  Share2,
+  Save,
+  Bold,
+  Image as ImageIcon,
+} from "lucide-react";
 
 const CANVAS_W = 800;
 
-export function MemeEditor() {
+type GalleryHook = ReturnType<typeof useGallery>;
+
+export function MemeEditor({ gallery }: { gallery: GalleryHook }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -30,14 +41,14 @@ export function MemeEditor() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
-  const { save } = useGallery();
+
+  const { save } = gallery;
 
   const selected = useMemo(
     () => layers.find((l) => l.id === selectedId) ?? null,
-    [layers, selectedId],
+    [layers, selectedId]
   );
 
-  // Load image whenever src changes
   useEffect(() => {
     let cancelled = false;
     if (!imageSrc) {
@@ -60,7 +71,6 @@ export function MemeEditor() {
     };
   }, [imageSrc]);
 
-  // Render
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -77,7 +87,9 @@ export function MemeEditor() {
   };
 
   const updateLayer = (id: string, patch: Partial<TextLayer>) => {
-    setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    setLayers((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, ...patch } : l))
+    );
   };
 
   const addLayer = () => {
@@ -96,19 +108,17 @@ export function MemeEditor() {
     if (selectedId === id) setSelectedId(null);
   };
 
-  // Drag handling
   const getCoords = (e: React.PointerEvent) => {
     const c = canvasRef.current!;
     const rect = c.getBoundingClientRect();
     return {
-      x: ((e.clientX - rect.left) / rect.width),
-      y: ((e.clientY - rect.top) / rect.height),
+      x: (e.clientX - rect.left) / rect.width,
+      y: (e.clientY - rect.top) / rect.height,
     };
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
     const { x, y } = getCoords(e);
-    // pick the closest layer within 8% radius
     let bestId: string | null = null;
     let bestDist = 0.12;
     for (const l of layers) {
@@ -153,40 +163,32 @@ export function MemeEditor() {
     if (result) {
       toast.success("Meme saved to gallery!");
     } else {
-      toast.error("Failed to save meme. Please log in.");
+      toast.error("Failed to save meme.");
     }
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
   };
 
-  const shareTo = (network: "twitter" | "facebook" | "native") => {
+  const shareMeme = () => {
     const c = canvasRef.current;
     if (!c) return;
-    const text = "Check out my meme made with MemeForge 🔥";
-    const pageUrl = typeof window !== "undefined" ? window.location.href : "";
-    if (network === "twitter") {
-      window.open(
-        `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(pageUrl)}`,
-        "_blank",
-      );
-    } else if (network === "facebook") {
-      window.open(
-        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}`,
-        "_blank",
-      );
-    } else if (navigator.share) {
-      c.toBlob(async (blob) => {
-        if (!blob) return;
-        const file = new File([blob], "meme.png", { type: "image/png" });
+    c.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], "meme.png", { type: "image/png" });
+      if (navigator.share && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], text });
+          await navigator.share({
+            title: "Check out my meme! 🔥",
+            files: [file],
+          });
         } catch {
-          /* user cancelled */
+          // user cancelled
         }
-      });
-    } else {
-      downloadMeme();
-    }
+      } else {
+        downloadMeme();
+        toast.info("Sharing not supported on this browser — meme downloaded instead!");
+      }
+    });
   };
 
   return (
@@ -195,10 +197,16 @@ export function MemeEditor() {
       <div className="rounded-2xl bg-card/60 backdrop-blur border border-border p-4 shadow-[var(--shadow-card)]">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm text-muted-foreground">
-            {imageSrc ? "Drag the text directly on the meme" : "Start by uploading an image or picking a template"}
+            {imageSrc
+              ? "Drag the text directly on the meme"
+              : "Start by uploading an image or picking a template"}
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => fileRef.current?.click()}
+            >
               <Upload className="size-4" /> Upload
             </Button>
             <input
@@ -210,6 +218,7 @@ export function MemeEditor() {
             />
           </div>
         </div>
+
         <div className="relative w-full overflow-hidden rounded-xl bg-black/40 grid place-items-center">
           <canvas
             ref={canvasRef}
@@ -222,20 +231,25 @@ export function MemeEditor() {
           />
         </div>
 
+        {/* Action buttons */}
         <div className="flex flex-wrap gap-2 mt-4">
           <Button onClick={downloadMeme} className="flex-1 min-w-[140px]">
             <Download className="size-4" /> Download PNG
           </Button>
-          <Button onClick={saveToGallery} variant="secondary" className="flex-1 min-w-[140px]">
-            <Save className="size-4" /> {savedFlash ? "Saved!" : "Save to gallery"}
+          <Button
+            onClick={saveToGallery}
+            variant="secondary"
+            className="flex-1 min-w-[140px]"
+          >
+            <Save className="size-4" />
+            {savedFlash ? "Saved!" : "Save to gallery"}
           </Button>
-          <Button onClick={() => shareTo("twitter")} variant="outline" size="icon" aria-label="Share on Twitter">
-            <Twitter className="size-4" />
-          </Button>
-          <Button onClick={() => shareTo("facebook")} variant="outline" size="icon" aria-label="Share on Facebook">
-            <Facebook className="size-4" />
-          </Button>
-          <Button onClick={() => shareTo("native")} variant="outline" size="icon" aria-label="Share">
+          <Button
+            onClick={shareMeme}
+            variant="outline"
+            size="icon"
+            aria-label="Share"
+          >
             <Share2 className="size-4" />
           </Button>
         </div>
@@ -295,7 +309,9 @@ export function MemeEditor() {
                   <Label className="text-xs">Text</Label>
                   <Input
                     value={selected.text}
-                    onChange={(e) => updateLayer(selected.id, { text: e.target.value })}
+                    onChange={(e) =>
+                      updateLayer(selected.id, { text: e.target.value })
+                    }
                     className="mt-1"
                   />
                 </div>
@@ -306,9 +322,7 @@ export function MemeEditor() {
                     <span className="text-muted-foreground">{selected.fontSize}px</span>
                   </Label>
                   <Slider
-                    min={16}
-                    max={120}
-                    step={1}
+                    min={16} max={120} step={1}
                     value={[selected.fontSize]}
                     onValueChange={([v]) => updateLayer(selected.id, { fontSize: v })}
                     className="mt-2"
@@ -321,9 +335,7 @@ export function MemeEditor() {
                     <span className="text-muted-foreground">{selected.strokeWidth}px</span>
                   </Label>
                   <Slider
-                    min={0}
-                    max={16}
-                    step={1}
+                    min={0} max={16} step={1}
                     value={[selected.strokeWidth]}
                     onValueChange={([v]) => updateLayer(selected.id, { strokeWidth: v })}
                     className="mt-2"
@@ -336,7 +348,9 @@ export function MemeEditor() {
                     <input
                       type="color"
                       value={selected.color}
-                      onChange={(e) => updateLayer(selected.id, { color: e.target.value })}
+                      onChange={(e) =>
+                        updateLayer(selected.id, { color: e.target.value })
+                      }
                       className="mt-1 h-9 w-full rounded-md bg-transparent border border-border cursor-pointer"
                     />
                   </div>
@@ -345,7 +359,9 @@ export function MemeEditor() {
                     <input
                       type="color"
                       value={selected.strokeColor}
-                      onChange={(e) => updateLayer(selected.id, { strokeColor: e.target.value })}
+                      onChange={(e) =>
+                        updateLayer(selected.id, { strokeColor: e.target.value })
+                      }
                       className="mt-1 h-9 w-full rounded-md bg-transparent border border-border cursor-pointer"
                     />
                   </div>
@@ -355,7 +371,9 @@ export function MemeEditor() {
                   <Label className="text-xs">Font</Label>
                   <select
                     value={selected.fontFamily}
-                    onChange={(e) => updateLayer(selected.id, { fontFamily: e.target.value })}
+                    onChange={(e) =>
+                      updateLayer(selected.id, { fontFamily: e.target.value })
+                    }
                     className="mt-1 w-full h-9 rounded-md bg-input/50 border border-border px-2 text-sm"
                   >
                     <option value="Impact, Anton, Oswald, Arial Black, sans-serif">Impact</option>
@@ -370,7 +388,9 @@ export function MemeEditor() {
                   <Button
                     size="sm"
                     variant={selected.bold ? "default" : "outline"}
-                    onClick={() => updateLayer(selected.id, { bold: !selected.bold })}
+                    onClick={() =>
+                      updateLayer(selected.id, { bold: !selected.bold })
+                    }
                   >
                     <Bold className="size-4" />
                   </Button>
@@ -400,25 +420,23 @@ export function MemeEditor() {
 
           <TabsContent value="templates" className="mt-4">
             <div className="grid grid-cols-2 gap-2">
-              {TEMPLATES.map((t) => {
-                const proxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proxy-image?url=${encodeURIComponent(t.url)}`;
-                return (
-                  <button
-                    key={t.url}
-                    onClick={() => setImageSrc(proxyUrl)}
-                    className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition"
-                  >
-                    <img
-                      src={proxyUrl}
-                      alt={t.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                      <span className="text-[10px] font-medium text-white">{t.name}</span>
-                    </div>
-                  </button>
-                );
-              })}
+              {TEMPLATES.map((t) => (
+                <button
+                  key={t.url}
+                  onClick={() => setImageSrc(t.url)}
+                  className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition"
+                >
+                  <img
+                    src={t.url}
+                    alt={t.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition"
+                    crossOrigin="anonymous"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                    <span className="text-[10px] font-medium text-white">{t.name}</span>
+                  </div>
+                </button>
+              ))}
             </div>
             <p className="text-[11px] text-muted-foreground mt-3 flex items-start gap-1.5">
               <ImageIcon className="size-3 mt-0.5 shrink-0" />

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { MemeEditor } from "@/components/MemeEditor";
 import { Gallery } from "@/components/Gallery";
 import { Sparkles, Flame } from "lucide-react";
+import { useGallery } from "@/hooks/useGallery";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -10,8 +11,7 @@ export const Route = createFileRoute("/")({
       { title: "MemeForge — Create & share memes in seconds" },
       {
         name: "description",
-        content:
-          "A fast, beautiful meme generator. Upload an image, drag text anywhere, share instantly.",
+        content: "A fast, beautiful meme generator. Upload an image, drag text anywhere, share instantly.",
       },
       { property: "og:title", content: "MemeForge — Meme Generator" },
       {
@@ -23,6 +23,8 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const gallery = useGallery();
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-border/60 backdrop-blur-sm sticky top-0 z-30 bg-background/70">
@@ -33,10 +35,7 @@ function Index() {
             </div>
             <span className="font-bold tracking-tight text-lg">MemeForge</span>
           </div>
-          <a
-            href="#gallery"
-            className="text-sm text-muted-foreground hover:text-foreground transition"
-          >
+          <a href="#gallery" className="text-sm text-muted-foreground hover:text-foreground transition">
             Gallery
           </a>
         </div>
@@ -59,8 +58,8 @@ function Index() {
           </p>
         </section>
 
-        <MemeEditor />
-        <Gallery />
+        <MemeEditor gallery={gallery} />
+        <Gallery gallery={gallery} />
 
         <footer className="mt-20 pt-8 border-t border-border/60 text-center text-xs text-muted-foreground">
           Built with React, Canvas, and a lot of caffeine ☕
