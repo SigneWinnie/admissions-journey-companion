@@ -17,11 +17,6 @@ import { Upload, Download, Plus, Trash2, Twitter, Facebook, Share2, Save, Bold, 
 
 const CANVAS_W = 800;
 
-// Polyfill for crypto.randomUUID — works on HTTP (no HTTPS required)
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
-
 export function MemeEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -29,8 +24,8 @@ export function MemeEditor() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [canvasH, setCanvasH] = useState(600);
   const [layers, setLayers] = useState<TextLayer[]>([
-    { ...DEFAULT_LAYER, id: generateId(), text: "TOP TEXT", y: 0.1 },
-    { ...DEFAULT_LAYER, id: generateId(), text: "BOTTOM TEXT", y: 0.9 },
+    { ...DEFAULT_LAYER, id: crypto.randomUUID(), text: "TOP TEXT", y: 0.1 },
+    { ...DEFAULT_LAYER, id: crypto.randomUUID(), text: "BOTTOM TEXT", y: 0.9 },
   ]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -88,7 +83,7 @@ export function MemeEditor() {
   const addLayer = () => {
     const newLayer: TextLayer = {
       ...DEFAULT_LAYER,
-      id: generateId(),
+      id: crypto.randomUUID(),
       text: "NEW TEXT",
       y: 0.5,
     };
@@ -113,6 +108,7 @@ export function MemeEditor() {
 
   const onPointerDown = (e: React.PointerEvent) => {
     const { x, y } = getCoords(e);
+    // pick the closest layer within 8% radius
     let bestId: string | null = null;
     let bestDist = 0.12;
     for (const l of layers) {
@@ -157,7 +153,7 @@ export function MemeEditor() {
     if (result) {
       toast.success("Meme saved to gallery!");
     } else {
-      toast.error("Failed to save meme.");
+      toast.error("Failed to save meme. Please log in.");
     }
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
@@ -404,22 +400,25 @@ export function MemeEditor() {
 
           <TabsContent value="templates" className="mt-4">
             <div className="grid grid-cols-2 gap-2">
-              {TEMPLATES.map((t) => (
-                <button
-                  key={t.url}
-                  onClick={() => setImageSrc(t.url)}
-                  className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition"
-                >
-                  <img
-                    src={t.url}
-                    alt={t.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                    <span className="text-[10px] font-medium text-white">{t.name}</span>
-                  </div>
-                </button>
-              ))}
+              {TEMPLATES.map((t) => {
+                const proxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proxy-image?url=${encodeURIComponent(t.url)}`;
+                return (
+                  <button
+                    key={t.url}
+                    onClick={() => setImageSrc(proxyUrl)}
+                    className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition"
+                  >
+                    <img
+                      src={proxyUrl}
+                      alt={t.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                      <span className="text-[10px] font-medium text-white">{t.name}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
             <p className="text-[11px] text-muted-foreground mt-3 flex items-start gap-1.5">
               <ImageIcon className="size-3 mt-0.5 shrink-0" />
